@@ -3,6 +3,7 @@ import sys
 import argparse
 from typing import Optional
 
+from dotenv import load_dotenv
 import requests
 
 
@@ -139,4 +140,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    load_dotenv()  # Load environment variables from .env file
     main()
