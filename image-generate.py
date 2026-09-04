@@ -4,6 +4,7 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from datetime import datetime
 from PIL import Image
 
 def generate_image(prompt: str = "A vibrant celebration of Janmashtami with Lord Krishna playing a flute, divine lighting, cinematic composition"):
@@ -59,7 +60,8 @@ def generate_image(prompt: str = "A vibrant celebration of Janmashtami with Lord
             if part.inline_data:
                 image_bytes = part.inline_data.data
                 image = Image.open(io.BytesIO(image_bytes))
-                output_filename = f"output_{image_count}.jpg" if image_count > 0 else "output.jpg"
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_filename = f"output_{timestamp}_{image_count}.jpg" if image_count > 0 else f"output_{timestamp}.jpg"
                 image.save(output_filename)
                 print(f"Image successfully saved to: {output_filename}")
                 image_count += 1
@@ -69,7 +71,7 @@ def generate_image(prompt: str = "A vibrant celebration of Janmashtami with Lord
 
 
 if __name__ == "__main__":
-    prompt_text = "A vibrant celebration of Janmashtami with Lord Krishna playing a flute, divine lighting, cinematic composition"
+    prompt_text = "A vibrant image of a robot sitting on the moon, looking at the Earth, cinematic lighting, highly detailed"
     if len(sys.argv) > 1:
         prompt_text = " ".join(sys.argv[1:])
     generate_image(prompt_text)
