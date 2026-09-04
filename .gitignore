@@ -10,3 +10,8 @@ wheels/
 .venv
 
 .env
+*.jpg
+# Service account keys
+*project-*.json
+*service-account*.json
+vertx-*.json
