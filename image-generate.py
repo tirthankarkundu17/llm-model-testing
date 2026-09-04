@@ -1,34 +1,75 @@
 import io
 import os
 import sys
-
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from PIL import Image
 
-load_dotenv()
+def generate_image(prompt: str = "A vibrant celebration of Janmashtami with Lord Krishna playing a flute, divine lighting, cinematic composition"):
+    load_dotenv()
 
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    print(
-        "Error: GEMINI_API_KEY environment variable is not set. "
-        "Set it in your .env file or environment.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+    # Vertex AI configuration:
+    # 1. Vertex AI Express Mode: uses Google Cloud API Key
+    # 2. Standard Vertex AI: uses GOOGLE_APPLICATION_CREDENTIALS / Project & Location
+    api_key = os.environ.get("GOOGLE_CLOUD_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 
-client = genai.Client(api_key=api_key)
+    if api_key:
+        print("Initializing Vertex AI client with API key...")
+        client = genai.Client(vertexai=True, api_key=api_key)
+    elif project:
+        print(f"Initializing Vertex AI client with Project ({project}) and Location ({location})...")
+        client = genai.Client(vertexai=True, project=project, location=location)
+    else:
+        print("Initializing Vertex AI client with Application Default Credentials...")
+        client = genai.Client(vertexai=True, location=location)
 
-response = client.models.generate_content(
-    model="gemini-2.5-flash-image",
-    contents="A futuristic neon city in the rain, cinematic lighting",
-    config=types.GenerateContentConfig(
+    # Gemini image generation model on Vertex AI
+    # Options include: gemini-3.1-flash-lite-image, gemini-3.1-flash-image, gemini-2.5-flash-image
+    model = "gemini-3.1-flash-lite-image"
+
+    print(f"Sending prompt to Vertex AI ({model}):\n\"{prompt}\"\n")
+
+    config = types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-    ),
-)
+        temperature=1.0,
+        top_p=0.95,
+        image_config=types.ImageConfig(
+            aspect_ratio="1:1",  # Options: "1:1", "3:4", "4:3", "9:16", "16:9"
+            output_mime_type="image/jpeg",
+        ),
+    )
 
-for part in response.candidates[0].content.parts:
-    if part.inline_data:
-        image = Image.open(io.BytesIO(part.inline_data.data))
-        image.save("output_flash.png")
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=config,
+    )
+
+    image_count = 0
+    for c_idx, candidate in enumerate(response.candidates):
+        if not candidate.content or not candidate.content.parts:
+            continue
+
+        for p_idx, part in enumerate(candidate.content.parts):
+            if part.text:
+                print(f"Model response text: {part.text}")
+            if part.inline_data:
+                image_bytes = part.inline_data.data
+                image = Image.open(io.BytesIO(image_bytes))
+                output_filename = f"output_{image_count}.jpg" if image_count > 0 else "output.jpg"
+                image.save(output_filename)
+                print(f"Image successfully saved to: {output_filename}")
+                image_count += 1
+
+    if image_count == 0:
+        print("No image was returned in the response.", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    prompt_text = "A vibrant celebration of Janmashtami with Lord Krishna playing a flute, divine lighting, cinematic composition"
+    if len(sys.argv) > 1:
+        prompt_text = " ".join(sys.argv[1:])
+    generate_image(prompt_text)
